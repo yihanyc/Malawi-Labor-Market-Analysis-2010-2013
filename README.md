@@ -1,0 +1,2 @@
+# Malawi-Labor-Market-Analysis-2010-2013
+ This repository contains data analysis, visualizations, and regression models examining non-farm labor force participation in Malawi (2010 & 2013). Using survey data and economic indicators, the study explores how economic crises, household dynamics, education, and financial constraints impact employment decisions. Includes cleaned datasets, R scripts for visualizations, and Stata regression outputs.

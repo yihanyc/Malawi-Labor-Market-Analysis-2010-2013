@@ -1,0 +1,279 @@
+---
+title: "Malawi Labor"
+author: "Yihan Chen"
+date: "2025-02-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load packages, echo=F}
+rm(list=ls())
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+pacman::p_load(tidyverse, haven) 
+```
+
+## 1. Preprosessing
+
+```{r load dataset, echo=F}
+data_path <- "../3_output/LSMS_final_individuals.dta"
+df <- read_stata(data_path)
+df$wave <- factor(df$wave, labels = c("Wave 1", "Wave 2"))
+```
+
+### 1.1 Age from 15 to 64
+
+```{r 1.1, echo=F}
+df <- df %>% filter(is.na(age) | (age >= 15 & age <= 64))
+colnames(df)
+```
+
+### 1.2 Age Distribution Comparison (Density Plot)
+
+```{r 1.2, echo=F}
+ggplot(df, aes(x = age, fill = wave)) +
+  geom_density(alpha = 0.5) +
+  scale_fill_manual(values = c("#FFA07A", "#4682B4")) +
+  labs(title = "Age Distribution in Malawi by Wave",
+       x = "Age", y = "Density", fill = " ") +
+  theme_minimal()+
+    theme(legend.position = "bottom",
+        panel.grid.major.y = element_blank(),
+        plot.title = element_text(hjust = 0.5))  # Remove horizontal grid lines for cleaner look
+```
+
+### 1.3 Marital Status Breakdown by Wave
+
+```{r 1.3, echo=F}
+marital_labels <- c("1" = "Married", 
+                    "2" = "Separated/Divorced", 
+                    "3" = "Widowed", 
+                    "4" = "Never Married")
+
+ggplot(df, aes(x = as.factor(maritalStatus), fill = wave)) + 
+  geom_bar(position = position_dodge(width = 0.8)) + 
+  geom_text(stat = "count", aes(label = ..count..), 
+            position = position_dodge(width = 0.8), vjust = -0.5, size = 4) +
+  scale_x_discrete(labels = marital_labels) +  
+  scale_fill_manual(values = c("#FFA07A", "#4682B4")) + 
+  labs(title = "Marital Status Comparison by Wave",
+       x = "Marital Status", y = "Count", fill = "Wave") + 
+  theme_minimal()
+```
+## 2. Education and Literacy
+
+### 2.1 Education Level Comparison by Wave
+
+```{r 2.1, echo=F}
+education_labels <- c("0" = "None", 
+                      "1" = "Primary", 
+                      "2" = "Secondary", 
+                      "3" = "Tertiary")
+df$highestEdu <- factor(df$highestEdu, levels = c(0, 1, 2, 3), labels = education_labels)
+
+ggplot(df, aes(x = highestEdu, fill = wave)) + 
+  geom_bar(position = position_dodge(width = 0.8)) +  # Bars side by side
+  geom_text(stat = "count", aes(label = ..count..), 
+            position = position_dodge(width = 0.8), vjust = -0.5, size = 4) +  # Add count labels
+  scale_fill_manual(values = c("#FFA07A", "#4682B4")) +  # Custom colors for waves
+  labs(title = "Highest Education Level by Wave",
+       x = "Education Level", y = "Count", fill = "Wave") + 
+  theme_minimal()
+```
+
+### 2.2 Literacy in Chichewa & English by Wave
+
+```{r 2.2, echo=F}
+
+literacy_labels <- c("0" = "No", "1" = "Yes")
+
+df$readChichewa <- factor(df$readChichewa, levels = c(0, 1), labels = literacy_labels)
+df$readEnglish <- factor(df$readEnglish, levels = c(0, 1), labels = literacy_labels)
+df$wave <- factor(df$wave, labels = c("Wave 1", "Wave 2"))
+
+df_long <- df %>%
+  pivot_longer(cols = c(readChichewa, readEnglish), 
+               names_to = "Language", 
+               values_to = "Literacy")
+
+language_labels <- c("readChichewa" = "Chichewa", "readEnglish" = "English")
+
+ggplot(df_long, aes(x = Literacy, fill = wave)) + 
+  geom_bar(position = position_dodge(width = 0.8)) +  # Side-by-side bars for each wave
+  geom_text(stat = "count", aes(label = ..count..), 
+            position = position_dodge(width = 0.8), vjust = -0.5, size = 4) +  # Count labels
+  facet_wrap(~Language, labeller = as_labeller(language_labels)) + 
+  scale_fill_manual(values = c("#FFA07A", "#4682B4")) + 
+  labs(title = "Literacy in Chichewa & English in Malawi in 2010 and 2013",
+       x = "Literacy", y = "Count", fill = " ") + 
+  theme_minimal()+
+    theme(legend.position = "bottom",
+        panel.grid.major.y = element_blank(),
+        plot.title = element_text(hjust = 0.5))  # Remove horizontal grid lines for cleaner look
+
+```
+
+## 3. Health & Economic Hardship
+
+### 3.1 Prepare variables
+
+```{r 3.1, echo=FALSE}
+
+df$chronicIllness <- factor(df$chronicIllness, levels = c(0, 1), labels = c("No", "Yes"))
+```
+
+### 3.2 Illness or Injury in the Past Two Weeks (illness2weeks)
+
+```{r 3.2, echo=FALSE}
+# Manually create a data frame with exact proportions
+illness_data <- data.frame(
+  wave = factor(c("Wave 1", "Wave 1", "Wave 2", "Wave 2"), levels = c("Wave 1", "Wave 2")),
+  illness2weeks = factor(c("No", "Yes", "No", "Yes"), levels = c("No", "Yes")),
+  prop = c(79.18, 19.16, 80.99, 17.27)  # Directly from your tabulation
+)
+
+# Create the bar plot with manual proportions
+ggplot(illness_data, aes(x = wave, y = prop, fill = illness2weeks)) +
+  geom_col(position = "dodge", width = 0.4) +  # Narrower bars for better spacing
+  geom_text(aes(label = paste0(prop, "%")), 
+            position = position_dodge(width = 0.6), vjust = -0.5, size = 5) +  # Annotate proportions
+  scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(0, 100)) +  # Percent scale
+  scale_fill_manual(values = c("#1b9e77", "#d95f02")) +  # Custom colors
+  labs(title = "Illness or Injury in the Past Two Weeks in Malawi by Wave",
+       x = NULL, y = NULL, fill = " ") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        panel.grid.major.y = element_blank(),
+        plot.title = element_text(hjust = 0.5))  # Remove horizontal grid lines for cleaner look
+
+```
+
+### 3.3 Plot for Chronic Illness (chronicIllness)
+
+```{r 3.3, echo=FALSE}
+ggplot(df, aes(x = chronicIllness, fill = wave)) + 
+  geom_bar(position = "dodge") +  # Side by side bars for each wave
+  labs(title = "Chronic Illness by Wave",
+       x = "Chronic Illness", y = "Count", fill = "Wave") +
+  scale_fill_manual(values = c("#1b9e77", "#d95f02")) +
+  theme_minimal()
+
+```
+
+### 3.4 Plot for Borrow Credit
+
+```{r 3.4, echo=FALSE}
+# Manually create a data frame with exact proportions
+borrow_data <- data.frame(
+  wave = factor(c("Wave 1", "Wave 1", "Wave 2", "Wave 2"), levels = c("Wave 1", "Wave 2")),
+  borrowCredit = factor(c("No", "Yes", "No", "Yes"), levels = c("No", "Yes")),
+  prop = c(84.35, 15.65, 75.50, 24.50)  # Directly from your tabulation
+)
+
+# Create the bar plot with manually assigned proportions
+ggplot(borrow_data, aes(x = wave, y = prop, fill = borrowCredit)) +
+  geom_col(position = "dodge", width = 0.6) +  # Side-by-side bars, narrower spacing
+  geom_text(aes(label = paste0(prop, "%")), 
+            position = position_dodge(width = 0.6), vjust = -0.5, size = 5) +  # Annotate percentages
+  scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(0, 100)) +  # Set percent scale
+  scale_fill_manual(values = c("#1b9e77", "#d95f02")) +  # Custom colors for clarity
+  labs(title = "Household Borrowing on Credit in the Past 12 Months in Malawi by Wave",
+       x = NULL, y = "Proportion", fill = " ") +  # Improved labels
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5))  # Center the title
+
+
+```
+
+## 4 Labor
+
+### 4.1 Employment status
+
+```{r 4.1, echo=FALSE}
+
+# Create a dataset with your exact proportions
+exact_props <- tibble(
+  wave = factor(c("Wave 1", "Wave 1", "Wave 2", "Wave 2"), levels = c("Wave 1", "Wave 2")),
+  labor12m = factor(c("Yes", "No", "Yes", "No"), levels = c("Yes", "No")),  # Yes on top in legend
+  prop = c(42.55, 57.45, 49.48, 50.52)  # Exact values you provided
+)
+
+# Set custom colors
+colors <- c("Yes" = "#228B22", "No" = "#FFA07A")  # Green for Yes, Orange for No
+
+# Create the horizontal stacked bar chart with proper proportions
+ggplot(exact_props, aes(x = wave, y = prop, fill = labor12m)) +
+  geom_col(width = 0.6) +  # Adjust bar width to make bars closer
+  geom_text(aes(label = paste0(prop, "%")), 
+            position = position_stack(vjust = 0.5), size = 4, color = "white") +  # Labels inside bars
+  scale_y_continuous(labels = scales::percent_format(scale = 1), limits = c(0, 100)) +  # Proper percentage scaling
+  scale_fill_manual(values = colors) +  # Apply custom colors
+  coord_flip() +  # Flip for horizontal bars
+  labs(title = "labor12m (2010 vs. 2013)",
+       x = NULL,  # Remove x-axis label
+       y = NULL,  # Remove y-axis label
+       fill = " ") +  # Remove legend title
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        axis.text.y = element_text(margin = margin(r = -10)),  # Reduce space between bars
+        panel.grid.major.y = element_blank(),
+        plot.title = element_text(hjust = 0.5))  # Remove horizontal grid lines for cleaner look
+
+
+
+```
+
+### 4.2 Employer Type
+
+```{r 4.2, echo=FALSE}
+df_employer <- data.frame(
+  employerType = c("Private Company", "Private Individual", "Government", 
+                   "State-Owned Enterprise", "MASAF/Public Works Program", 
+                   "Church/Religious Organization", "Political Party", "Other"),
+  count = c(829, 738, 650, 80, 38, 143, 1, 35),
+  percentage = c(32.98, 29.36, 25.86, 3.18, 1.51, 5.69, 0.04, 1.39)  # Precomputed percentages
+)
+
+# Create the pie chart
+ggplot(df_employer, aes(x = "", y = percentage, fill = employerType)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +  # Convert bar chart into a pie chart
+  geom_text(aes(label = paste0(round(percentage, 1), "%")), 
+            position = position_stack(vjust = 0.5), size = 4) +  # Add percentage labels
+  scale_fill_brewer(palette = "Pastel1") +  # Use a visually appealing color palette
+  labs(title = "Employer Type Distribution", fill = "Employer Type") +
+  theme_void()  # Remove unnecessary chart elements for a cleaner pie chart
+```
+
+### 4.3 Reason for not employed
+
+```{r 4.3, echo=FALSE}
+df_reasonNoWork <- data.frame(
+  reason = c("On leave", "Illness", "Business closed temporarily", 
+             "Not farming season", "Other (specify)"),
+  count = c(159, 251, 138, 1916, 599),
+  percentage = c(5.19, 8.19, 4.51, 62.55, 19.56)  # Corrected percentages
+)
+
+# Create the pie chart
+ggplot(df_reasonNoWork, aes(x = "", y = percentage, fill = reason)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +  # Convert bar chart into a pie chart
+  geom_text(aes(label = paste0(round(percentage, 2), "%")), 
+            position = position_stack(vjust = 0.5), size = 4) +  # Add percentage labels
+  scale_fill_brewer(palette = "Set3") +  # Use a distinct color palette
+  labs(title = "Reasons for Not Working in the Last 7 Days", fill = "Reason") +
+  theme_void()  # Remove unnecessary chart elements for a clean look
+```
+
+
+
+
+
+
+
+
+
